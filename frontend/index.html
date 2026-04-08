@@ -207,17 +207,19 @@ async function sendMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     try {
-        const res = await fetch("http://127.0.0.1:8000/chat", {
+        const res = await fetch("https://ai-chat-app-vd9w.onrender.com/chat", {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({message: msg})
         });
 
         const data = await res.json();
-
+        console.log(data);
         document.getElementById(id).remove();
 
-        chatBox.innerHTML += `<div class="message ai">${data.reply}</div>`;
+        const reply = data.reply || data.response || data.message;
+
+        chatBox.innerHTML += `<div class="message ai">${reply}</div>`;
 
         localStorage.setItem(currentChat, chatBox.innerHTML);
         loadChats();
