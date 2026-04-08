@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>AI Chat App</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+    transition: 0.3s;
+}
+
+body.light {
+    background: linear-gradient(135deg, #e2e8f0, #f8fafc);
+    color: black;
+}
+
+.app {
+    display: flex;
+    height: 100vh;
+}
+
+/* SIDEBAR */
+.sidebar {
+    width: 260px;
+    padding: 15px;
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+body.light .sidebar {
+    background: rgba(255,255,255,0.7);
+}
+
+.sidebar button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    border: none;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    color: white;
+    cursor: pointer;
+}
+
+.chatItem {
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 8px;
+    background: rgba(255,255,255,0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.chatItem:hover {
+    background: rgba(255,255,255,0.1);
+}
+
+.activeChat {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+}
+
+.chatActions button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #94a3b8;
+}
+
+/* MAIN */
+.main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* CHAT BOX */
+#chatBox {
+    width: 60%;
+    height: 70vh;
+    margin-top: 40px;
+    padding: 15px;
+    border-radius: 15px;
+    overflow-y: auto;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(10px);
+}
+
+body.light #chatBox {
+    background: white;
+}
+
+/* MESSAGES */
+.message {
+    padding: 10px;
+    margin: 10px;
+    border-radius: 12px;
+    max-width: 70%;
+    animation: fadeIn 0.3s ease;
+}
+
+.user {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    margin-left: auto;
+}
+
+.ai {
+    background: rgba(255,255,255,0.1);
+}
+
+body.light .ai {
+    background: #e5e7eb;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(5px);}
+    to {opacity: 1;}
+}
+
+/* INPUT */
+.inputArea {
+    margin-top: 10px;
+}
+
+input {
+    width: 300px;
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+body.light input {
+    background: #e5e7eb;
+    color: black;
+}
+
+button.send {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    margin-left: 5px;
+    background: #3b82f6;
+    color: white;
+    cursor: pointer;
+}
+
+.typing {
+    opacity: 0.6;
+    font-style: italic;
+}
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <button onclick="newChat()">+ New Chat</button>
+    <button onclick="toggleDarkMode()">🌙 Toggle Theme</button>
+    <div id="chatList"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+    <div id="chatBox"></div>
+
+    <div class="inputArea">
+        <input id="userInput" placeholder="Type message..." />
+        <button class="send" onclick="sendMessage()">Send</button>
+        <button class="send" onclick="startVoice()">🎤</button>
+    </div>
+
+</div>
+
+</div>
+
+<script>
+
+let currentChat = localStorage.getItem("currentChat") || null;
+
+/* SEND */
+async function sendMessage() {
+    const input = document.getElementById("userInput");
+    const chatBox = document.getElementById("chatBox");
+
+    const msg = input.value;
+    if (!msg) return;
+
+    if (!currentChat) newChat();
+
+    chatBox.innerHTML += `<div class="message user">${msg}</div>`;
+    input.value = "";
+
+    const id = "typing_" + Date.now();
+    chatBox.innerHTML += `<div id="${id}" class="message ai typing">Typing...</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    try {
+        const res = await fetch("http://127.0.0.1:8000/chat", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message: msg})
+        });
+
+        const data = await res.json();
+
+        document.getElementById(id).remove();
+
+        chatBox.innerHTML += `<div class="message ai">${data.reply}</div>`;
+
+        localStorage.setItem(currentChat, chatBox.innerHTML);
+        loadChats();
+
+    } catch {
+        document.getElementById(id).remove();
+    }
+}
+
+/* NEW CHAT */
+function newChat() {
+    const id = "chat_" + Date.now();
+    currentChat = id;
+
+    localStorage.setItem("currentChat", id);
+    localStorage.setItem(id + "_name", "New Chat");
+
+    document.getElementById("chatBox").innerHTML = "";
+    loadChats();
+}
+
+/* LOAD CHATS */
+function loadChats() {
+    const list = document.getElementById("chatList");
+    list.innerHTML = "";
+
+    Object.keys(localStorage).forEach((key) => {
+
+        if (key.startsWith("chat_") && !key.includes("_name")) {
+
+            const name = localStorage.getItem(key + "_name") || "New Chat";
+
+            const div = document.createElement("div");
+            div.className = "chatItem";
+
+            if (key === currentChat) {
+                div.classList.add("activeChat");
+            }
+
+            div.onclick = () => {
+                currentChat = key;
+                localStorage.setItem("currentChat", key);
+
+                const saved = localStorage.getItem(key);
+                document.getElementById("chatBox").innerHTML = saved || "";
+                loadChats();
+            };
+
+            const title = document.createElement("span");
+            title.innerText = name;
+
+            const actions = document.createElement("div");
+            actions.className = "chatActions";
+
+            /* RENAME */
+            const rename = document.createElement("button");
+            rename.innerText = "✏️";
+            rename.onclick = (e) => {
+                e.stopPropagation();
+                const newName = prompt("Rename chat:");
+                if (newName) {
+                    localStorage.setItem(key + "_name", newName);
+                    loadChats();
+                }
+            };
+
+            /* DELETE */
+            const del = document.createElement("button");
+            del.innerText = "❌";
+            del.onclick = (e) => {
+                e.stopPropagation();
+                localStorage.removeItem(key);
+                localStorage.removeItem(key + "_name");
+
+                if (key === currentChat) {
+                    currentChat = null;
+                    document.getElementById("chatBox").innerHTML = "";
+                }
+
+                loadChats();
+            };
+
+            actions.appendChild(rename);
+            actions.appendChild(del);
+
+            div.appendChild(title);
+            div.appendChild(actions);
+
+            list.appendChild(div);
+        }
+    });
+}
+
+/* ENTER */
+document.getElementById("userInput").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendMessage();
+});
+
+/* DARK MODE */
+function toggleDarkMode() {
+    document.body.classList.toggle("light");
+
+    if (document.body.classList.contains("light")) {
+        localStorage.setItem("theme", "light");
+    } else {
+        localStorage.setItem("theme", "dark");
+    }
+}
+
+/* VOICE */
+let recognition;
+
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Voice not supported");
+        return;
+    }
+
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-IN";
+
+    const input = document.getElementById("userInput");
+
+    recognition.onstart = () => {
+        input.placeholder = "Listening...";
+    };
+
+    recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        input.value = text;
+        sendMessage();
+    };
+
+    recognition.onend = () => {
+        input.placeholder = "Type message...";
+    };
+
+    recognition.start();
+}
+
+/* LOAD */
+window.onload = function() {
+
+    loadChats();
+
+    const saved = localStorage.getItem(currentChat);
+    if (saved) {
+        document.getElementById("chatBox").innerHTML = saved;
+    }
+
+    const theme = localStorage.getItem("theme");
+    if (theme === "light") {
+        document.body.classList.add("light");
+    }
+};
+
+</script>
+
+</body>
+</html>
