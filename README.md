@@ -54,7 +54,7 @@ Response:
 ## ⚙️ Installation (Run Locally)
 
 ### 1. Clone the repository
-git clone https://github.com/junaid-aiml/ai-chat-app.git⁠ cd ai-chat-app
+git clone https://github.com/junaid-aiml/ai-chat-app cd ai-chat-app
 
 ### 2. Setup Backend
 cd backend pip install -r requirements.txt
